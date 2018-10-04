@@ -1,65 +1,50 @@
 
+import javazoom.jl.decoder.JavaLayerException;
+import javazoom.jl.player.Player;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.sound.sampled.*;
+import java.awt.event.*;
+import java.io.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.File;
-import java.io.IOException;
 import java.time.ZoneId;
 import java.util.TimerTask;
 import java.util.Timer;
 
 public class Beeper {
-    private static boolean userSleep;
+    private static boolean userSleep = false;
     private static JTextField timePlace;
     private static JTextField notice;
     private static BeepClock bc;
-    private static Clip myclip;
-    private static File file = new File("C:\\Users\\Мария\\IdeaProjects\\beeper\\src\\wav\\audio-1.wav");
+    private static Player myplayer;
+    private static File file = new File("src\\wav\\audio-1.mp3");
 
-    private static void signalSetter(){
-        userSleep = true;
+    private static void signalSetter() {
+        if (userSleep) {
+            myplayer.close();
+        }
         bc = new BeepClock(timePlace.getText());
         try {
             bc.setter();
-        }catch (NullPointerException ex){
+        } catch (NullPointerException ex) {
             notice.setText("Something goes wrong, try again");
-            System.out.println(ex.getMessage());
+            ex.printStackTrace();
         }
         interval();
-        notice.setText("I'll wake up you at "+ bc.getShortBeepTime());
+        notice.setText("I'll wake up you at " + bc.getShortBeepTime());
+        userSleep = true;
     }
 
-    private static void sound(){
-        try{
-            //Получаем AudioInputStream
-        //Вот тут могут полететь IOException и UnsupportedAudioFileException
-        AudioInputStream ais = AudioSystem.getAudioInputStream(file);
-
-        //Получаем реализацию интерфейса Clip
-        //Может выкинуть LineUnavailableException
-        myclip = AudioSystem.getClip();
-
-        //Загружаем наш звуковой поток в Clip
-        //Может выкинуть IOException и LineUnavailableException
-        myclip.open(ais);
-        ais.close();
-    } catch (IOException | UnsupportedAudioFileException | LineUnavailableException exc) {
-        exc.printStackTrace();}
-            myclip.setFramePosition(0); //устанавливаем указатель на старт
-            myclip.start(); //Поехали!!!
-
-            //Если не запущено других потоков, то стоит подождать, пока клип не закончится
-            //В GUI-приложениях следующие 3 строчки не понадобятся
-            try {
-                Thread.sleep(60000);
-                myclip.stop(); //Останавливаем
-                myclip.close(); //Закрываем
-                userSleep = false;
-            } catch (InterruptedException exc) {exc.printStackTrace();}
+    private static void soundMP3() {
+        try {
+            FileInputStream f = new FileInputStream(file);
+            myplayer = new Player(f);
+            myplayer.play(6000);
+            myplayer.close();
+            userSleep = false;
+        } catch (FileNotFoundException| JavaLayerException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void interval(){
@@ -71,19 +56,17 @@ public class Beeper {
             @Override
             public void run() {
                 notice.setText("Beep!");
-                sound();
-
+                soundMP3();
             }
         }, che);
     }
 
     private static void audioChooser(){
         if(userSleep){
-           myclip.stop();
-           myclip.close();
+           myplayer.close();
         }
         JFileChooser chooser = new JFileChooser();
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("WAV Files", "wav");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("MP3 Files", "mp3");
         chooser.setFileFilter(filter);
         int ret = chooser.showDialog(null, "Open");
         if (ret == JFileChooser.APPROVE_OPTION) {
@@ -93,27 +76,22 @@ public class Beeper {
         }else chooser.cancelSelection();
 
         try {
-        //Получаем AudioInputStream
-        //Вот тут могут полететь IOException и UnsupportedAudioFileException
-        AudioInputStream ais = AudioSystem.getAudioInputStream(file);
-
-        //Получаем реализацию интерфейса Clip
-        //Может выкинуть LineUnavailableException
-        myclip = AudioSystem.getClip();
-
-        //Загружаем наш звуковой поток в Clip
-        //Может выкинуть IOException и LineUnavailableException
-        myclip.open(ais);
-        notice.setText("Beeper audio was changed");
-        } catch (IOException | UnsupportedAudioFileException | LineUnavailableException exc) {
-            exc.printStackTrace();
+            FileInputStream f = new FileInputStream(file);
+            myplayer = new Player(f);
+            notice.setText("Beeper audio was changed");
+            
+        }catch (JavaLayerException e) {
+            e.printStackTrace();
             notice.setText("Can't read your file try another one");
+
+        }catch (FileNotFoundException e) {
+            e.printStackTrace();
+            notice.setText("Can't find your file try another one");
         }
     }
 
     private static void stoper(){
-        myclip.stop(); //Останавливаем
-        myclip.close();
+        myplayer.close();
         userSleep = false;
     }
 
@@ -125,7 +103,7 @@ public class Beeper {
         timePlace.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                timePlace.setText("");
+                timePlace.setText(":");
                 timePlace.setFocusable(true);
             }
         });
